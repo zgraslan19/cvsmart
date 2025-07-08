@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CVSmart.se – Skapa ditt CV för 29 kr</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      margin: 0; padding: 0;
+      color: #333;
+    }
+    header {
+      background: #0051a2;
+      color: white;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    main {
+      max-width: 600px;
+      background: white;
+      margin: 2rem auto;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+    input, textarea, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-sizing: border-box;
+      font-size: 1rem;
+    }
+    button {
+      background: #0051a2;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background: #003c7a;
+    }
+    .paypal-buttons {
+      margin-top: 20px;
+      text-align: center;
+    }
+    footer {
+      text-align: center;
+      color: #777;
+      font-size: 0.8rem;
+      padding: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CVSmart.se</h1>
+    <p>Skapa ett professionellt CV på 3 minuter – endast 29 kr</p>
+  </header>
+  <main>
+    <form id="cvForm">
+      <h2>Dina uppgifter</h2>
+      <input type="text" name="namn" placeholder="För- och efternamn" required />
+      <input type="text" name="titel" placeholder="Jobbtitel (t.ex. Ekonom)" required />
+      <textarea name="profil" placeholder="Kort beskrivning om dig själv" rows="3"></textarea>
+      <textarea name="erfarenhet" placeholder="Arbetslivserfarenhet" rows="4"></textarea>
+      <textarea name="utbildning" placeholder="Utbildning" rows="3"></textarea>
+      <textarea name="fardigheter" placeholder="Färdigheter / Programkunskap" rows="2"></textarea>
+      <button type="submit">Fortsätt till betalning</button>
+    </form>
+
+    <div id="paypal-button-container" class="paypal-buttons" style="display:none;"></div>
+  </main>
+  <footer>
+    &copy; 2025 CVSmart.se | <a href="mailto:support@cvsmart.se">support@cvsmart.se</a>
+  </footer>
+
+  <!-- PayPal SDK -->
+  <script src="https://www.paypal.com/sdk/js?client-id=YOUR_PAYPAL_CLIENT_ID&currency=SEK"></script>
+
+  <!-- jsPDF (PDF-generator) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <script>
+    const form = document.getElementById('cvForm');
+    const paypalContainer = document.getElementById('paypal-button-container');
+    let formDataGlobal;
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      formDataGlobal = new FormData(form);
+      // Visa PayPal-knappen när formulär är ifyllt
+      form.style.display = 'none';
+      paypalContainer.style.display = 'block';
+    });
+
+    // PayPal-knappen
+    paypal.Buttons({
+      style: {
+        layout: 'vertical',
+        color:  'blue',
+        shape:  'pill',
+        label:  'pay',
+      },
+      createOrder: (data, actions) => {
+        return actions.order.create({
+          purchase_units: [{
+            amount: {
+              value: '29.00',
+              currency_code: 'SEK'
+            },
+            description: 'Skapa CV på cvsmart.se'
+          }]
+        });
+      },
+      onApprove: async (data, actions) => {
+        const order = await actions.order.capture();
+        alert('Betalning mottagen! Nu genereras ditt CV som PDF.');
+
+        // Generera PDF med info från formuläret
+        generatePDF(formDataGlobal);
+
+        // Dölj PayPal-knappen efter betalning
+        paypalContainer.style.display = 'none';
+      },
+      onError: (err) => {
+        alert('Något gick fel med betalningen. Försök igen.');
+        form.style.display = 'block';
+        paypalContainer.style.display = 'none';
+      }
+    }).render('#paypal-button-container');
+
+    // PDF-generator med jsPDF
+    function generatePDF(data) {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF();
+
+      pdf.setFontSize(22);
+      pdf.text(data.get('namn'), 20, 30);
+
+      pdf.setFontSize(16);
+      pdf.text(data.get('titel'), 20, 40);
+
+      pdf.setFontSize(14);
+      pdf.text('Profil:', 20, 55);
+      pdf.setFontSize(12);
+      pdf.text(splitTextToLines(data.get('profil'), 80), 20, 65);
+
+      pdf.setFontSize(14);
+      pdf.text('Arbetslivserfarenhet:', 20, 85);
+      pdf.setFontSize(12);
+      pdf.text(splitTextToLines(data.get('erfarenhet'), 80), 20, 95);
+
+      pdf.setFontSize(14);
+      pdf.text('Utbildning:', 20, 115);
+      pdf.setFontSize(12);
+      pdf.text(splitTextToLines(data.get('utbildning'), 80), 20, 125);
+
+      pdf.setFontSize(14);
+      pdf.text('Färdigheter:', 20, 145);
+      pdf.setFontSize(12);
+      pdf.text(splitTextToLines(data.get('fardigheter'), 80), 20, 155);
+
+      pdf.save('cvsmart_cv.pdf');
+    }
+
+    // Hjälpfunktion för att dela text i rader för PDF
+    function splitTextToLines(text, maxLineLength) {
+      if (!text) return '';
+      const words = text.split(' ');
+      let lines = [];
+      let currentLine = '';
+      words.forEach(word => {
+        if ((currentLine + word).length < maxLineLength) {
+          currentLine += word + ' ';
+        } else {
+          lines.push(currentLine.trim());
+          currentLine = word + ' ';
+        }
+      });
+      lines.push(currentLine.trim());
+      return lines.join('\n');
+    }
+  </script>
+</body>
+</html>
